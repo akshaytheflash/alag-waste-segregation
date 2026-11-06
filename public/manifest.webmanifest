@@ -1,0 +1,9 @@
+{
+  "name": "Alag — Household segregation proof",
+  "short_name": "Alag",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f5ee",
+  "theme_color": "#0c7a3f",
+  "icons": []
+}
