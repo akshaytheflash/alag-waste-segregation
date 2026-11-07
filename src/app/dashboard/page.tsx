@@ -1,108 +1,399 @@
 "use client";
 import { useEffect, useState } from "react";
+import { computeImpact, formulaLines, FACTORS } from "@/lib/impact";
+
+type Day = {
+  day: number;
+  date: string;
+  inspections: number;
+  compliancePct: number;
+  wetKg: number;
+  dryKg: number;
+  mixedKg: number;
+};
+
+type Stats = {
+  isTemplate: boolean;
+  seededAt: string | null;
+  totalHouseholds: number;
+  days: Day[];
+  baseline: number;
+  day7: number;
+  liftPoints: number;
+  wetDivertedKg: number;
+  mixedKg: number;
+};
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [error, setError] = useState("");
 
   async function load() {
     setLoading(true);
+    setError("");
     try {
       const r = await fetch("/api/pilot/stats");
-      setStats(await r.json());
-    } catch {}
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      setStats(j);
+    } catch (e: any) {
+      setError(e?.message || "The pilot stats route did not answer.");
+    }
     setLoading(false);
   }
+
   useEffect(() => {
     load();
   }, []);
 
   async function seed() {
     setSeeding(true);
-    const r = await fetch("/api/pilot/seed", { method: "POST" });
-    setStats((await r.json()).stats);
+    setError("");
+    try {
+      const r = await fetch("/api/pilot/seed", { method: "POST" });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      setStats(j.stats);
+    } catch (e: any) {
+      setError(e?.message || "Seeding failed.");
+    }
     setSeeding(false);
   }
 
-  if (loading) return <p>Loading pilot data…</p>;
-  if (!stats || !stats.days?.length) {
+  if (loading) {
     return (
-      <div>
-        <h1>7-day pilot dashboard</h1>
-        <p className="muted">No pilot data yet. Load the template pilot (200 households × 7 days, clearly labeled) or add live inspections from the Collector tab.</p>
-        <button className="btn btn-primary" onClick={seed} disabled={seeding}>
-          {seeding ? "Seeding…" : "Seed template pilot (200 households × 7 days)"}
-        </button>
-      </div>
+      <section className="hero">
+        <p className="label">Pilot ledger · 7 days</p>
+        <h1>Reading the register…</h1>
+        <div className="empty" style={{ marginTop: 16 }}>
+          <b>Loading the pilot rows.</b> The compliance line and the impact arithmetic are computed from the same inspection table.
+        </div>
+      </section>
     );
   }
 
-  const maxWet = Math.max(...stats.days.map((d: any) => Math.max(d.wetKg, d.mixedKg)));
+  if (!stats || !stats.days?.length) {
+    return (
+      <>
+        <section className="hero">
+          <p className="label">Pilot ledger · 7 days</p>
+          <h1>No pilot rows yet.</h1>
+          <p>
+            The ledger is empty. Seed the labelled template to see the full Day-1 to Day-7 loop, or collect live inspections from the
+            field tool. Government figures are never seeded.
+          </p>
+        </section>
+        {error && (
+          <div className="notice red">
+            <span className="notice-title">Could not read the ledger</span>
+            {error}
+          </div>
+        )}
+        <div className="empty">
+          <b>Two honest ways to start.</b>
+          <div className="btn-row two" style={{ marginTop: 10 }}>
+            <button className="btn btn-primary" type="button" onClick={seed} disabled={seeding}>
+              {seeding ? "Seeding 1,400 rows…" : "Seed the template pilot (200 × 7)"}
+            </button>
+            <a className="btn btn-quiet" href="/">
+              Collect a live inspection
+            </a>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  const impact = computeImpact(stats.totalHouseholds, stats.day7, 7);
+  const lines = formulaLines(stats.totalHouseholds, stats.day7, 7);
+  const annual = computeImpact(1000, stats.day7, 7).annualPer1000Tonnes;
+  const seededOn = stats.seededAt
+    ? new Date(stats.seededAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+    : null;
+
   return (
-    <div>
-      <h1>7-day pilot dashboard</h1>
-      <p className="muted">Before/after from collector photos — ~200 households. Ward data is <em>Pilot-collected</em>.</p>
+    <>
+      <section className="hero">
+        <p className="label">Pilot ledger · 7 days · {stats.totalHouseholds} households</p>
+        <h1>What changed, one bin at a time.</h1>
+        <p>
+          Baseline and endline from the collector&apos;s own photo register. Compliance means a bin recorded as wet or dry; mixed and
+          hazardous bins do not count.
+        </p>
+        <div className="hero-meta">
+          <span>
+            Register: <b>{stats.isTemplate ? "template pilot" : "live inspections"}</b>
+          </span>
+          <span>
+            Rows: <b>{stats.days.reduce((n, d) => n + d.inspections, 0).toLocaleString("en-IN")}</b>
+          </span>
+          <span>
+            Days: <b>{stats.days.length}</b>
+          </span>
+        </div>
+      </section>
 
       {stats.isTemplate && (
-        <div className="card" style={{ borderColor: "#f59e0b", background: "#fffbeb" }}>
-          <strong>⚠️ TEMPLATE PILOT DATA</strong>
-          <p className="muted">
-            This 7-day flow (200 households) is seeded template data to demonstrate the dashboard end-to-end (Day-1 baseline vs Day-7). It is <strong>not</strong> government data. Real deployment: use the Collector tab live, then clear/replace this data.
-          </p>
-          <div className="row">
-            <button className="btn btn-primary" onClick={seed} disabled={seeding}>Re-seed template</button>
-            <a className="btn btn-ghost" href="/">Replace with live pilot →</a>
+        <div className="notice" style={{ borderLeftWidth: 8 }}>
+          <span className="notice-title">Template pilot — a demonstration, not a real ward</span>
+          Seeded {seededOn ? `on ${seededOn}` : "for this demo"} as 200 households × 7 days. Every compliance and kg row below is
+          generated by <code>src/lib/pilotSeed.ts</code>; no government figure is used. Replace it with live inspections before quoting
+          any impact.
+          <div className="btn-row two" style={{ marginTop: 10, maxWidth: 520 }}>
+            <a className="btn btn-ink btn-sm" href="/">
+              Collect live inspections
+            </a>
+            <button className="btn btn-quiet btn-sm" type="button" onClick={seed} disabled={seeding}>
+              {seeding ? "Re-seeding…" : "Re-seed template"}
+            </button>
           </div>
         </div>
       )}
 
-      <div className="grid3" style={{ marginTop: 12 }}>
-        <div className="stat"><b>{stats.baseline}%</b><div className="muted">Day-1 baseline</div></div>
-        <div className="stat"><b>{stats.day7}%</b><div className="muted">Day-7 compliance</div></div>
-        <div className="stat"><b>+{stats.liftPoints} pts</b><div className="muted">Lift (nudges)</div></div>
-        <div className="stat"><b>{stats.wetDivertedKg} kg</b><div className="muted">Wet waste diverted (7d)</div></div>
-        <div className="stat"><b>{stats.mixedKg} kg</b><div className="muted">Still mixed (7d)</div></div>
-        <div className="stat"><b>{stats.totalHouseholds}</b><div className="muted">Households</div></div>
-      </div>
+      {error && (
+        <div className="notice red">
+          <span className="notice-title">Ledger error</span>
+          {error}
+        </div>
+      )}
 
-      <div className="card">
-        <h3>Compliance by day (wet/dry segregated)</h3>
-        {stats.days.map((d: any) => (
-          <div key={d.day} style={{ marginBottom: 10 }}>
-            <div className="row" style={{ justifyContent: "space-between" }}>
-              <span style={{ fontSize: "0.85rem" }}>Day {d.day} • {d.date}</span>
-              <strong>{d.compliancePct}%</strong>
+      <section className="sheet">
+        <div className="sheet-head">
+          <h2>Day 1 to Day 7</h2>
+          <span className={`tag ${stats.isTemplate ? "ochre" : "green"}`}>
+            {stats.isTemplate ? "Template rows" : "Photo-proven rows"}
+          </span>
+        </div>
+
+        <div className="readout">
+          <div className="side">
+            <span className="big num">
+              {stats.baseline}
+              <small>%</small>
+            </span>
+            <span className="caption">
+              Day 1 baseline
+              <br />
+              {stats.days[0]?.inspections.toLocaleString("en-IN")} bins photographed
+            </span>
+          </div>
+          <div className="mid" aria-hidden="true">
+            7 days
+          </div>
+          <div className="side right">
+            <span className="big num">
+              {stats.day7}
+              <small>%</small>
+            </span>
+            <span className="caption">
+              Day 7 compliance
+              <br />
+              {stats.days[stats.days.length - 1]?.inspections.toLocaleString("en-IN")} bins photographed
+            </span>
+          </div>
+        </div>
+        <span className={`delta ${stats.liftPoints < 0 ? "ochre" : ""}`}>
+          {stats.liftPoints >= 0 ? "+" : ""}
+          {stats.liftPoints} points
+        </span>
+        <p className="source" style={{ marginTop: 8 }}>
+          Change from the first to the last day in the register. Not an annual rate and not a claim about the city.
+        </p>
+      </section>
+
+      <section className="sheet">
+        <div className="sheet-head">
+          <h2>Compliance by day</h2>
+          <span className="sheet-meta">Wet or dry ÷ all inspections</span>
+        </div>
+        <div className="bar-scale" aria-hidden="true">
+          <span>0%</span>
+          <span>50%</span>
+          <span>100%</span>
+        </div>
+        {stats.days.map((d) => (
+          <div className="bar-row" key={d.day}>
+            <div className="day">
+              <b>Day {d.day}</b>
+              {d.date.slice(5)}
             </div>
-            <div className="bar-wrap"><div className="bar-fill" style={{ width: `${Math.min(100, d.compliancePct)}%` }} /></div>
+            <div className="bar-track" role="img" aria-label={`Day ${d.day}: ${d.compliancePct}% compliant`}>
+              <div
+                className={`bar-fill ${d.compliancePct < 50 ? "red" : d.compliancePct < 70 ? "ochre" : ""}`}
+                style={{ width: `${Math.max(0, Math.min(100, d.compliancePct))}%` }}
+              />
+            </div>
+            <div className="pct num">{d.compliancePct}%</div>
           </div>
         ))}
-      </div>
+        <p className="source" style={{ marginTop: 10 }}>
+          Each bar is {stats.days[0]?.inspections || 0} inspections. The rail colour changes at 50% and 70% so a bad day is legible at a
+          glance, not only in the number.
+        </p>
 
-      <div className="card">
-        <h3>Wet vs Mixed kg by day</h3>
-        <table className="table">
-          <thead><tr><th>Day</th><th>Wet kg</th><th>Dry kg</th><th>Mixed kg</th></tr></thead>
-          <tbody>
-            {stats.days.map((d: any) => (
-              <tr key={d.day}><td>{d.day}</td><td>{d.wetKg}</td><td>{d.dryKg}</td><td>{d.mixedKg}</td></tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="muted">Scale: mixed bar relative to daily wet max {maxWet} kg. Wet diverted = kg kept out of landfill because bins were segregated.</p>
-      </div>
+        <details className="kit" style={{ marginTop: 12 }}>
+          <summary>
+            <span>Day-by-day kg behind the bars</span>
+            <span className="plus" aria-hidden="true">
+              +
+            </span>
+          </summary>
+          <div className="kit-body" style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+              <thead>
+                <tr>
+                  {["Day", "Bins", "Wet kg", "Dry kg", "Mixed kg"].map((h) => (
+                    <th
+                      key={h}
+                      style={{
+                        textAlign: "left",
+                        padding: "6px 8px",
+                        borderBottom: "2px solid var(--ink)",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {stats.days.map((d) => (
+                  <tr key={d.day}>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid var(--line)" }}>{d.day}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid var(--line)" }}>{d.inspections}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid var(--line)" }}>{d.wetKg}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid var(--line)" }}>{d.dryKg}</td>
+                    <td style={{ padding: "7px 8px", borderBottom: "1px solid var(--line)" }}>{d.mixedKg}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </section>
 
-      <div className="card">
-        <h3>How to run a real pilot</h3>
-        <ol style={{ fontSize: "0.9rem", lineHeight: 1.6, paddingLeft: 18 }}>
-          <li>Onboard 200 households (Collector tab → Add household, capture PIN live via India Post).</li>
-          <li>Collector photographs every bin daily for 7 days (offline queue syncs when back online).</li>
-          <li>Each photo is classified by BharatCode vision (2s→4s→8s backoff, deterministic fallback) and confirmed by the collector.</li>
-          <li>Non-compliant bins trigger a WhatsApp nudge deep link (wa.me) in Hindi/English — collector taps Send.</li>
-          <li>Day-1 baseline vs Day-7 on this dashboard = before/after proof. RWA leaderboard on <a href="/leaderboard">/leaderboard</a>.</li>
+      <section className="sheet">
+        <div className="sheet-head">
+          <h2>What the week diverted</h2>
+          <span className="tag ochre">Estimate, not a weighbridge</span>
+        </div>
+        <p className="sheet-lede">
+          Every factor is on its own line. Change the household count or the Day-7 compliance and the result changes with it. The
+          factors are published national planning figures, not measurements from this ward.
+        </p>
+
+        <div className="formula">
+          {lines.map((l) => (
+            <div className="formula-line" key={l.expression}>
+              <span className="expr">{l.expression}</span>
+              <span className="res num">{l.result}</span>
+              <span className="src">{l.source}</span>
+            </div>
+          ))}
+          <div className="formula-total">
+            <div>
+              <span className="big num">
+                {impact.divertedKg.toLocaleString("en-IN")}
+                <small> kg</small>
+              </span>
+              <span className="caption">
+                wet waste diverted in 7 days
+                <br />
+                at {stats.day7}% segregation
+              </span>
+            </div>
+            <span className="tag green">Estimate</span>
+          </div>
+        </div>
+
+        <div className="context-line" style={{ marginTop: 12 }}>
+          <span className="k">Annualised, per 1,000 households at {stats.day7}%</span>
+          <span className="v num">
+            {annual} t wet/yr
+            <small>same factors, 365 days</small>
+          </span>
+        </div>
+        <div className="context-line">
+          <span className="k">Measured in the template photo register</span>
+          <span className="v num">
+            {stats.wetDivertedKg.toLocaleString("en-IN")} kg
+            <small>wet kg in non-mixed bins, 7 days</small>
+          </span>
+        </div>
+        <div className="context-line">
+          <span className="k">Still mixed in the template register</span>
+          <span className="v num">
+            {stats.mixedKg.toLocaleString("en-IN")} kg
+            <small>7 days</small>
+          </span>
+        </div>
+
+        <p className="source" style={{ marginTop: 10 }}>
+          The measured row comes from the seeded inspection rows. The estimate above it is a ceiling built from {FACTORS.householdSize}{" "}
+          people/household ({FACTORS.householdSource}), {FACTORS.perCapitaKgDay} kg/person/day ({FACTORS.perCapitaSource}) and a 50%
+          wet fraction ({FACTORS.compositionSource}). The two numbers are not interchangeable.
+        </p>
+      </section>
+
+      <section className="sheet">
+        <div className="sheet-head">
+          <h2>The problem this sits inside</h2>
+          <span className="sheet-meta">National context, not this pilot</span>
+        </div>
+        <div className="notice" style={{ borderLeftWidth: 8 }}>
+          <span className="notice-title">India generates about 1.7 lakh tonnes of municipal solid waste a day.</span>
+          CPCB reports that only about 20% is processed; the rest is dumped or unaccounted. That is why a per-household record matters:
+          a city-level tonnage cannot tell a ward which bins are actually separated. Source: CPCB Annual Report 2021-22 / 2022-23.
+        </div>
+        <p className="source">
+          The 1.7 lakh figure and the 20% figure are national. They are not used to compute this pilot&apos;s diverted kg, which is built
+          from the household count and the published per-capita and composition factors above.
+        </p>
+      </section>
+
+      <section className="sheet">
+        <div className="sheet-head">
+          <h2>How the loop works</h2>
+          <span className="sheet-meta">A sequence, not a feature list</span>
+        </div>
+        <ol className="steps">
+          <li>
+            <div>
+              <b>One photo at pickup</b>
+              <span>The collector photographs the bin already in front of them. No new hardware, no household app.</span>
+            </div>
+          </li>
+          <li>
+            <div>
+              <b>A vision read, then a human confirm</b>
+              <span>BharatCode classifies wet, dry, mixed or hazardous. The collector confirms or overrides; the source is stored.</span>
+            </div>
+          </li>
+          <li>
+            <div>
+              <b>A nudge the same morning</b>
+              <span>A mixed bin produces a prefilled Hindi + English WhatsApp message. The collector taps Send; Alag never fakes it.</span>
+            </div>
+          </li>
+          <li>
+            <div>
+              <b>Day 1 against Day 7</b>
+              <span>The same register, the same households, a week apart. The ward sees movement, not a one-off survey.</span>
+            </div>
+          </li>
         </ol>
-        <a className="btn btn-primary" href="/">→ Start live pilot collection</a>
-      </div>
-    </div>
+        <div className="btn-row two" style={{ marginTop: 14 }}>
+          <a className="btn btn-primary" href="/">
+            Open the field tool
+          </a>
+          <a className="btn btn-quiet" href="/leaderboard">
+            See the ward register
+          </a>
+        </div>
+      </section>
+    </>
   );
 }

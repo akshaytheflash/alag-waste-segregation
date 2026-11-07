@@ -124,9 +124,11 @@ export function getPilotStats() {
   // kg wet diverted: sum of wet_kg on compliant (non-mixed) inspections across week
   const wetTotal = (conn.prepare(`SELECT COALESCE(SUM(wet_kg),0) as s FROM inspections WHERE classification != 'mixed'`).get() as any).s as number;
   const mixedTotal = (conn.prepare(`SELECT COALESCE(SUM(mixed_kg),0) as s FROM inspections`).get() as any).s as number;
+  const seeded = conn.prepare(`SELECT value FROM pilot_meta WHERE key='seeded_at'`).get() as any;
 
   return {
     isTemplate: isTemplate?.value === "1",
+    seededAt: seeded?.value || null,
     totalHouseholds: totalBins,
     days,
     baseline: day1,

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export function GET() {
   const rows = db().prepare(`SELECT * FROM bins ORDER BY id DESC LIMIT 500`).all();
   return NextResponse.json(rows);

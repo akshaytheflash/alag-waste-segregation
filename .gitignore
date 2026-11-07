@@ -7,3 +7,6 @@ data/*.db
 
 .vercel
 .env*
+
+.cache/
+*.tsbuildinfo
