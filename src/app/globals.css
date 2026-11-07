@@ -21,12 +21,12 @@
   --line-soft: #d8dfd6;
   --font: "Anek Latin", "Anek Devanagari", "Noto Sans Devanagari", system-ui,
     -apple-system, "Segoe UI", sans-serif;
-  --step--1: 0.78rem;
-  --step-0: 0.96rem;
-  --step-1: 1.12rem;
-  --step-2: 1.4rem;
-  --step-3: clamp(1.75rem, 4.4vw, 2.5rem);
-  --display: clamp(2.5rem, 8.5vw, 4.5rem);
+  --step--1: 0.9rem;
+  --step-0: 1.08rem;
+  --step-1: 1.26rem;
+  --step-2: 1.56rem;
+  --step-3: clamp(1.9rem, 4.6vw, 2.75rem);
+  --display: clamp(2.6rem, 8.5vw, 4.75rem);
   --gutter: clamp(16px, 4vw, 40px);
 }
 
@@ -1659,4 +1659,128 @@ details.kit[open] summary .plus {
   body {
     background: #fff;
   }
+}
+
+/* ——— legibility pass ———
+   The collector reads this outdoors, one-handed, in the sun. Body text is
+   a step up, labels and captions are pulled out of the 0.7s, and weights
+   carry more than before so thin strokes survive small phone screens. */
+.label {
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.sheet-meta,
+.source,
+.hero-meta,
+.small,
+.field-help {
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.hero-dek {
+  font-size: 1.12rem;
+  line-height: 1.55;
+  font-weight: 450;
+}
+
+.chip,
+.btn,
+.select,
+.input {
+  font-size: 1.02rem;
+}
+
+.chip span,
+.btn-sm {
+  font-size: 0.88rem;
+}
+
+h2 { font-weight: 700; }
+
+/* ——— round card: where the collector is, without scrolling back ——— */
+.float-reg {
+  position: sticky;
+  top: 86px;
+  z-index: 35;
+  margin: 12px 0 0;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  padding: 10px 13px 12px;
+  animation: reg-in 240ms ease-out both;
+}
+
+@keyframes reg-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.float-reg-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.float-reg-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.float-reg-dot.off { color: var(--ochre-ink); }
+
+.float-reg-count {
+  margin: 6px 0 8px;
+  font-size: 1.02rem;
+  color: var(--ink-2);
+}
+
+.float-reg-count b {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.float-reg-track {
+  height: 8px;
+  background: var(--paper-2);
+  border: 1px solid var(--line);
+}
+
+.float-reg-track span {
+  display: block;
+  height: 100%;
+  background: var(--green);
+  transition: width 240ms ease-out;
+}
+
+@media (min-width: 980px) {
+  .float-reg {
+    position: fixed;
+    right: clamp(14px, 2.4vw, 30px);
+    bottom: clamp(14px, 2.4vw, 26px);
+    top: auto;
+    width: min(300px, calc(100vw - 28px));
+    margin: 0;
+    box-shadow: 6px 6px 0 rgba(22, 35, 59, 0.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .float-reg,
+  .float-reg-track span { animation: none; transition: none; }
+}
+
+@media print {
+  .float-reg { display: none !important; }
 }

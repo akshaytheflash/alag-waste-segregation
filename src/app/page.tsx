@@ -4,6 +4,7 @@ import CityContext, { type CityData } from "@/components/CityContext";
 import LandfillPanel from "@/components/LandfillPanel";
 import Escalate from "@/components/Escalate";
 import { CameraIcon } from "@/components/Icons";
+import FloatingRegister from "@/components/FloatingRegister";
 
 type Lang = "en" | "hi";
 type Verdict = "wet" | "dry" | "mixed" | "hazardous";
@@ -645,6 +646,13 @@ export default function FieldTool() {
           {queue.length > 0 && <span className="tag ochre">{queue.length} queued</span>}
         </div>
       </section>
+
+      <FloatingRegister
+        logged={register.filter((i) => i.date === new Date().toISOString().slice(0, 10)).length}
+        total={bins.length}
+        queued={queue.length}
+        online={online}
+      />
 
       <div className="field-grid">
         <div>
