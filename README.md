@@ -22,7 +22,7 @@ Current apps are citizen-reporting or top-down dashboards. Neither uses the **co
 1. **Collector PWA (mobile-first, Hindi + English):**
    - Add household (PIN → district/state via **live India Post API**).
    - **One photo per bin** (camera on phones), offline queue to localStorage, sync when back online.
-   - Classification **wet / dry / mixed / hazardous** via **BharatCode vision LLM** (`qwen-3.8-27b`) with **exponential backoff 2s → 4s → 8s** on 503s, then **deterministic fallback** (honest "manual confirm" state — demo never crashes).
+   - Classification **wet / dry / mixed / hazardous** via the **`qwen-3.8-27b` vision model** with **exponential backoff 2s → 4s → 8s** on 503s, then **deterministic fallback** (honest "manual confirm" state — demo never crashes).
    - One-tap confirm / override of the classification.
    - **Auto WhatsApp nudge deep link** (`wa.me` URL with prefilled multilingual message in Hindi + English). *Deep link only — we never fake a send; the collector taps Send in WhatsApp.*
    - Optional **kabadi pickup** button for segregated dry waste.
@@ -36,8 +36,8 @@ Current apps are citizen-reporting or top-down dashboards. Neither uses the **co
 
 - **Next.js 14 + TypeScript** (App Router), **SQLite** via `better-sqlite3`, single repo.
 - PWA manifest, offline-first queue, bilingual UI (EN / हिंदी).
-- LLM: **BharatCode** OpenAI-compatible — `https://bharatcode.ai/api/model/v1`, model `qwen-3.8-27b` (vision+text, 262k ctx), `POST /chat/completions`, `Authorization: Bearer $BHARATCODE_API_KEY`. Key lives in `.env` **server-side only**, never in frontend, `.env` is gitignored.
-- Docs: https://bharatcode.ai/build — verified `GET /models` returns `qwen-3.8-27b` + `deepseek-v4.1-flash`.
+- LLM: **`qwen-3.8-27b`** (vision+text, 262k ctx) over an OpenAI-compatible `POST /chat/completions`, `Authorization: Bearer $BHARATCODE_API_KEY`; the base URL is set by `BHARATCODE_BASE_URL`. Key lives in `.env` **server-side only**, never in frontend, `.env` is gitignored.
+- Verified `GET /models` returns `qwen-3.8-27b` + `deepseek-v4.1-flash`.
 
 ## Setup
 
@@ -84,7 +84,7 @@ own script.
 ## Demo script (3 minutes, judge-friendly)
 
 1. **Collector tab** — Add a household (e.g. "Sharma Residence, B-42, PIN 110001") → tap **Lookup PIN**. District/state appears live via India Post. Select the household.
-2. **Photo → Classify** — Take/upload any bin photo, tap **Classify with BharatCode vision**. Watch the source badge: `BharatCode Vision` (with attempt count) or, if the API is intermittently 503, the honest `Deterministic fallback` + one-tap confirm. **Confirm** the category (wet/dry/mixed/hazardous).
+2. **Photo → Classify** — Take/upload any bin photo, tap **Classify with the vision model**. Watch the source badge: the model name with its attempt count, or, if the API is intermittently 503, the honest `Deterministic fallback` + one-tap confirm. **Confirm** the category (wet/dry/mixed/hazardous).
 3. **Nudge** — Tap **Send WhatsApp nudge** → WhatsApp opens with a prefilled Hindi+English message naming the result. Tap Send yourself (deep link only, no fake send). Tap **Request kabadi pickup** for dry waste.
 4. **Live proof** (Collector tab bottom) — **Compute live distance** (Delhi coords) returns real km/minutes from OSRM; **Load AQI** returns live US AQI from Open-Meteo; **Search place** via Nominatim. If an API is down you’ll see an honest error + retry, never invented numbers.
 5. **Pilot dashboard** (`/dashboard`) — Tap **Seed template pilot (200 households × 7 days)** → see **Day-1 36.5% → Day-7 76.0%** (+39.5 pts), **937.9 kg wet diverted**, compliance chart. The banner labels it **TEMPLATE PILOT DATA — not government data**, with **“Replace with live pilot →”** (the Collector tab). Government numbers (CPCB) are never seeded.
@@ -100,7 +100,7 @@ own script.
 | Routes | `https://router.project-osrm.org/route/v1/driving/{lng},{lat};{lng},{lat}` | OSRM driving profile. Verified Delhi 5.2 km / ~9.6 min (575 s). |
 | AQI context | `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=...&longitude=...&current=us_aqi,pm2_5,pm10` | Open-Meteo / CAMS. Verified Delhi US AQI 208 at time of test. |
 | CPCB figures | ~1.7 lakh tonnes/day MSW, ~20% processed | CPCB Annual Report 2021-22 / 2022-23 — cited in UI footer + here. |
-| Vision LLM | `https://bharatcode.ai/api/model/v1` + `GET /models` | `qwen-3.8-27b` status `live`, 262k ctx. Verified `GET /models` → 200 with both models live. 503s handled with backoff + fallback (verified end-to-end: 4 attempts → deterministic fallback, manual confirm required). |
+| Vision model | OpenAI-compatible `GET /models` + `POST /chat/completions` | `qwen-3.8-27b` status `live`, 262k ctx. Verified `GET /models` → 200 with both models live. 503s handled with backoff + fallback (verified end-to-end: 4 attempts → deterministic fallback, manual confirm required). |
 
 **Verified 2026-11-06 (all through the live app on `:3000`):** `/api/pincode/110001` → 200 Central Delhi, Delhi · `/api/geocode` → Connaught Place 28.6317, 77.2193 · `/api/route` → 5.2 km / 10 min (5206 m / 575 s, OSRM driving) · `/api/aqi` → US AQI 208, PM2.5 94.8 · `POST /api/pilot/seed` → 200 households × 7 days, stats Day-1 36.5% → Day-7 76.0% · `/api/leaderboard` → 5 RWAs ranked · `POST /api/classify` → vision with 4-attempt backoff + honest fallback · `/`, `/dashboard`, `/leaderboard` → 200.
 **Quirk found & fixed:** `api.postalpincode.in` resets connections with custom/non-browser User-Agents (any `Alag-.../1.0` string → connection reset; plain `Mozilla/5.0` → 200). The proxy therefore sends a plain `Mozilla/5.0` UA.
@@ -111,7 +111,7 @@ own script.
 
 - **Who:** 200 households in 1–2 RWAs; 1–2 collectors with any Android phone; 7 days.
 - **Day 0:** Onboard households in Alag (PIN lookup confirms the locality). Capture household WhatsApp number + preferred language (हिंदी/EN).
-- **Days 1–7:** Collector photographs each bin once per day. BharatCode classifies; collector confirms. Mixed bins auto-generate a WhatsApp nudge deep link. Dry waste gets a kabadi request.
+- **Days 1–7:** Collector photographs each bin once per day. The model classifies; collector confirms. Mixed bins auto-generate a WhatsApp nudge deep link. Dry waste gets a kabadi request.
 - **Day 1 vs Day 7:** `/dashboard` computes baseline vs end compliance, wet kg diverted, and per-RWA leaderboard from real inspection rows. Export / screenshot for the ward officer + RWA.
 - **Replace template with live:** Delete template rows by seeding/inspecting directly — insert live inspections via `/api/inspections` (collector saves) and `is_template` flips to false once live rows exist. Never alter CPCB figures — those are national context, not pilot counts.
 - **Route planning:** Use OSRM panel to plan collection loops with real distances/durations.
@@ -129,7 +129,7 @@ own script.
 ## Privacy & honesty notes
 
 - Photos are classified server-side; only hashes/notes are stored long-term. WhatsApp nudges are deep links — no message is claimed sent without the human tapping Send.
-- If BharatCode returns 503 (`model_unavailable`), the app shows the fallback badge and requires manual confirm rather than inventing a confident label.
+- If the model returns 503 (`model_unavailable`), the app shows the fallback badge and requires manual confirm rather than inventing a confident label.
 
 ## Repo layout
 
@@ -139,11 +139,11 @@ src/app/dashboard/page.tsx  7-day before/after pilot dashboard
 src/app/leaderboard/page.tsx RWA/ward leaderboard
 src/app/api/*               Live proxies (postalpin, nominatim, OSRM, open-meteo) + classify/bins/inspections/pilot
 src/lib/db.ts               SQLite schema (bins, inspections, pilot_meta)
-src/lib/llm.ts              BharatCode client (2s→4s→8s backoff)
+src/lib/llm.ts              model client (2s→4s→8s backoff)
 src/lib/fallback.ts         Deterministic fallback classifier
 src/lib/pilotSeed.ts        Template pilot (200×7) + stats/leaderboard queries
 ```
 
 ## Credits
 
-- Data: India Post pincode API, OpenStreetMap Nominatim, OSRM, Open-Meteo Air Quality, CPCB Annual Reports, BharatCode vision LLM.
+- Data: India Post pincode API, OpenStreetMap Nominatim, OSRM, Open-Meteo Air Quality, CPCB Annual Reports, `qwen-3.8-27b` vision model.
