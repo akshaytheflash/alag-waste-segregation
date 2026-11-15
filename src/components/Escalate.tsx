@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/I18nProvider";
+import type { MessageKey } from "@/lib/i18n";
 
 type GrievanceResult = {
   portal: {
@@ -14,12 +16,12 @@ type GrievanceResult = {
   complaint: string;
 };
 
-const ISSUE_OPTIONS = [
-  { id: "mixed-collection", en: "Wet and dry collected together", hi: "गीला और सूखा एक साथ" },
-  { id: "burning", en: "Waste burned in the open", hi: "कचरा खुले में जलाया" },
-  { id: "dumping", en: "Garbage dumped on the street", hi: "सड़क पर कचरा" },
-  { id: "missed", en: "Bin not collected", hi: "कूड़ेदान नहीं उठा" },
-  { id: "no-separate-bin", en: "No separate wet/dry bin", hi: "अलग कूड़ेदान नहीं" },
+const ISSUE_OPTIONS: { id: string; label: MessageKey }[] = [
+  { id: "mixed-collection", label: "escalate.issue.mixed-collection" },
+  { id: "burning", label: "escalate.issue.burning" },
+  { id: "dumping", label: "escalate.issue.dumping" },
+  { id: "missed", label: "escalate.issue.missed" },
+  { id: "no-separate-bin", label: "escalate.issue.no-separate-bin" },
 ];
 
 export default function Escalate({
@@ -37,6 +39,7 @@ export default function Escalate({
   verdict: string;
   recordRef: string;
 }) {
+  const { t } = useI18n();
   const [issue, setIssue] = useState("mixed-collection");
   const [details, setDetails] = useState("");
   const [name, setName] = useState("");
@@ -104,27 +107,24 @@ export default function Escalate({
 
   return (
     <div>
-      <p className="sheet-lede">
-        A photo register is evidence, not a fix. When a bin stays mixed or waste is burned, send the record to the corporation that
-        owns the ward. Alag prepares the text and opens the official portal; you submit it and keep the complaint number.
-      </p>
+      <p className="sheet-lede">{t("escalate.intro")}</p>
 
       <div className="grid-2">
         <div className="field">
           <label className="label" htmlFor="issue">
-            What is wrong
+            {t("escalate.whatWrong")}
           </label>
           <select id="issue" className="select" value={issue} onChange={(e) => setIssue(e.target.value)}>
             {ISSUE_OPTIONS.map((o) => (
               <option key={o.id} value={o.id}>
-                {lang === "hi" ? o.hi : o.en}
+                {t(o.label)}
               </option>
             ))}
           </select>
         </div>
         <div className="field">
           <label className="label" htmlFor="lang">
-            Complaint language
+            {t("escalate.complaintLanguage")}
           </label>
           <select id="lang" className="select" value={lang} onChange={(e) => setLang(e.target.value as "en" | "hi")}>
             <option value="en">English</option>
@@ -135,14 +135,14 @@ export default function Escalate({
 
       <div className="field">
         <label className="label" htmlFor="details">
-          What did you see (optional)
+          {t("escalate.details")}
         </label>
         <textarea
           id="details"
           className="textarea"
           value={details}
           onChange={(e) => setDetails(e.target.value)}
-          placeholder="Example: the same handcart mixed the green and blue bins on the morning round, twice this week."
+          placeholder={t("escalate.detailsPlaceholder")}
           maxLength={400}
         />
       </div>
@@ -150,13 +150,19 @@ export default function Escalate({
       <div className="grid-2">
         <div className="field">
           <label className="label" htmlFor="cname">
-            Your name (optional)
+            {t("escalate.name")}
           </label>
-          <input id="cname" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Collector name" />
+          <input
+            id="cname"
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("escalate.namePlaceholder")}
+          />
         </div>
         <div className="field">
           <label className="label" htmlFor="cphone">
-            Contact number (optional)
+            {t("escalate.phone")}
           </label>
           <input
             id="cphone"
@@ -164,7 +170,7 @@ export default function Escalate({
             value={phone}
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
             inputMode="numeric"
-            placeholder="10-digit mobile"
+            placeholder={t("escalate.phonePlaceholder")}
           />
         </div>
       </div>
@@ -173,7 +179,7 @@ export default function Escalate({
         <div className="portal">
           <div className="portal-body">{target.body}</div>
           <div className="portal-meta">
-            {target.scope} Helpline {target.helpline}.
+            {t("escalate.portalMeta", { scope: target.scope, helpline: target.helpline })}
           </div>
           <a className="portal-link" href={target.url} target="_blank" rel="noreferrer">
             {target.url.replace(/^https?:\/\//, "")}
@@ -181,51 +187,49 @@ export default function Escalate({
         </div>
       ) : (
         <div className="notice">
-          <span className="notice-title">No portal matched this city</span>
-          Use the national mission page to find the state SBM cell, then file there.
+          <span className="notice-title">{t("escalate.noPortalTitle")}</span>
+          {t("escalate.noPortalBody")}
         </div>
       )}
 
       <div className="row between" style={{ marginTop: 10 }}>
         <span className="label" style={{ margin: 0 }}>
-          Draft complaint
+          {t("escalate.draft")}
         </span>
-        <span className="source">{loading ? "Building…" : "Ready to copy"}</span>
+        <span className="source">{loading ? t("escalate.building") : t("escalate.ready")}</span>
       </div>
-      <pre className="copy-box" aria-live="polite">
+      <pre className="copy-box" aria-live="polite" lang={lang}>
         {result?.complaint || "—"}
       </pre>
 
       <div className="btn-row two" style={{ marginTop: 10 }}>
         <button className="btn btn-quiet" type="button" onClick={copy} disabled={!result?.complaint}>
-          {copied ? "Copied to clipboard" : "Copy complaint text"}
+          {copied ? t("escalate.copied") : t("escalate.copy")}
         </button>
         {target ? (
           <a className="btn btn-primary" href={target.url} target="_blank" rel="noreferrer">
-            Open the {portal ? "corporation" : "mission"} portal
+            {portal ? t("escalate.openCorporation") : t("escalate.openMission")}
           </a>
         ) : (
           <span />
         )}
       </div>
       <p className="source" style={{ marginTop: 8 }}>
-        Alag does not file on your behalf and does not invent a complaint number. The portal issues the reference. Drafts are built in
-        this browser from the fields above; nothing is sent to a third party.
+        {t("escalate.footnote")}
       </p>
 
       <div className="sheet" id="kabadi" style={{ marginTop: 22 }}>
         <div className="sheet-head">
-          <h3>Kabadi pickup for dry waste</h3>
-          <span className="sheet-meta">Your number, your kabadi</span>
+          <h3>{t("escalate.kabadiTitle")}</h3>
+          <span className="sheet-meta">{t("escalate.kabadiMeta")}</span>
         </div>
         <p className="small" style={{ color: "var(--ink-2)", marginBottom: 10 }}>
-          There is no kabadi marketplace here. Enter the number of a scrap dealer you already use; Alag writes the message and opens
-          WhatsApp. You send it.
+          {t("escalate.kabadiBody")}
         </p>
         <div className="grid-2">
           <div className="field">
             <label className="label" htmlFor="kphone">
-              Kabadi WhatsApp number
+              {t("escalate.kabadiPhone")}
             </label>
             <input
               id="kphone"
@@ -233,12 +237,12 @@ export default function Escalate({
               value={kabadiPhone}
               onChange={(e) => setKabadiPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
               inputMode="numeric"
-              placeholder="10-digit mobile"
+              placeholder={t("escalate.phonePlaceholder")}
             />
           </div>
           <div className="field">
             <label className="label" htmlFor="kg">
-              Dry waste ready (kg)
+              {t("escalate.kabadiKg")}
             </label>
             <input
               id="kg"
@@ -252,16 +256,15 @@ export default function Escalate({
         </div>
         {wa ? (
           <a className="btn btn-ochre btn-wide" href={wa} target="_blank" rel="noreferrer">
-            Open WhatsApp with the pickup message
+            {t("escalate.openWa")}
           </a>
         ) : (
           <button className="btn btn-quiet btn-wide" type="button" disabled>
-            Enter a 10-digit number to build the link
+            {t("escalate.enterNumber")}
           </button>
         )}
         <p className="source" style={{ marginTop: 8 }}>
-          A wa.me deep link to the number you supplied. No listing, no matching, no fee, and no message is claimed sent until you tap
-          Send in WhatsApp.
+          {t("escalate.kabadiFootnote")}
         </p>
       </div>
     </div>

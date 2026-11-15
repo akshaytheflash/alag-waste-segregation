@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { computeImpact, formulaLines, FACTORS } from "@/lib/impact";
+import { useI18n } from "@/components/I18nProvider";
+import type { MessageKey } from "@/lib/i18n";
 
 type Day = {
   day: number;
@@ -24,7 +26,16 @@ type Stats = {
   mixedKg: number;
 };
 
+const KG_HEAD_KEYS: MessageKey[] = [
+  "dashboard.thDay",
+  "dashboard.thBins",
+  "dashboard.thWetKg",
+  "dashboard.thDryKg",
+  "dashboard.thMixedKg",
+];
+
 export default function Dashboard() {
+  const { t } = useI18n();
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
@@ -39,7 +50,7 @@ export default function Dashboard() {
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
       setStats(j);
     } catch (e: any) {
-      setError(e?.message || "The pilot stats route did not answer.");
+      setError(e?.message || t("dashboard.statsRouteError"));
     }
     setLoading(false);
   }
@@ -57,7 +68,7 @@ export default function Dashboard() {
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
       setStats(j.stats);
     } catch (e: any) {
-      setError(e?.message || "Seeding failed.");
+      setError(e?.message || t("dashboard.seedFailed"));
     }
     setSeeding(false);
   }
@@ -65,10 +76,10 @@ export default function Dashboard() {
   if (loading) {
     return (
       <section className="hero">
-        <p className="label">Pilot ledger · 7 days</p>
-        <h1>Reading the register…</h1>
+        <p className="label">{t("dashboard.kicker")}</p>
+        <h1>{t("dashboard.loadingTitle")}</h1>
         <div className="empty" style={{ marginTop: 16 }}>
-          <b>Loading the pilot rows.</b> The compliance line and the impact arithmetic are computed from the same inspection table.
+          <b>{t("dashboard.loadingLead")}</b> {t("dashboard.loadingBody")}
         </div>
       </section>
     );
@@ -78,27 +89,24 @@ export default function Dashboard() {
     return (
       <>
         <section className="hero">
-          <p className="label">Pilot ledger · 7 days</p>
-          <h1>No pilot rows yet.</h1>
-          <p>
-            The ledger is empty. Seed the labelled template to see the full Day-1 to Day-7 loop, or collect live inspections from the
-            field tool. Government figures are never seeded.
-          </p>
+          <p className="label">{t("dashboard.kicker")}</p>
+          <h1>{t("dashboard.emptyTitle")}</h1>
+          <p>{t("dashboard.emptyBody")}</p>
         </section>
         {error && (
           <div className="notice red">
-            <span className="notice-title">Could not read the ledger</span>
+            <span className="notice-title">{t("dashboard.errorTitle")}</span>
             {error}
           </div>
         )}
         <div className="empty">
-          <b>Two honest ways to start.</b>
+          <b>{t("dashboard.twoWays")}</b>
           <div className="btn-row two" style={{ marginTop: 10 }}>
             <button className="btn btn-primary" type="button" onClick={seed} disabled={seeding}>
-              {seeding ? "Seeding 1,400 rows…" : "Seed the template pilot (200 × 7)"}
+              {seeding ? t("dashboard.seedingRows") : t("dashboard.seedTemplate")}
             </button>
             <a className="btn btn-quiet" href="/">
-              Collect a live inspection
+              {t("dashboard.collectLive")}
             </a>
           </div>
         </div>
@@ -116,37 +124,36 @@ export default function Dashboard() {
   return (
     <>
       <section className="hero">
-        <p className="label">Pilot ledger · 7 days · {stats.totalHouseholds} households</p>
-        <h1>What changed, one bin at a time.</h1>
-        <p>
-          Baseline and endline from the collector&apos;s own photo register. Compliance means a bin recorded as wet or dry; mixed and
-          hazardous bins do not count.
-        </p>
+        <p className="label">{t("dashboard.kickerCount", { count: stats.totalHouseholds })}</p>
+        <h1>{t("dashboard.title")}</h1>
+        <p>{t("dashboard.intro")}</p>
         <div className="hero-meta">
           <span>
-            Register: <b>{stats.isTemplate ? "template pilot" : "live inspections"}</b>
+            {t("dashboard.register")}{" "}
+            <b>{stats.isTemplate ? t("dashboard.registerTemplate") : t("dashboard.registerLive")}</b>
           </span>
           <span>
-            Rows: <b>{stats.days.reduce((n, d) => n + d.inspections, 0).toLocaleString("en-IN")}</b>
+            {t("dashboard.rows")}{" "}
+            <b>{stats.days.reduce((n, d) => n + d.inspections, 0).toLocaleString("en-IN")}</b>
           </span>
           <span>
-            Days: <b>{stats.days.length}</b>
+            {t("dashboard.days")} <b>{stats.days.length}</b>
           </span>
         </div>
       </section>
 
       {stats.isTemplate && (
         <div className="notice" style={{ borderLeftWidth: 8 }}>
-          <span className="notice-title">Template pilot — a demonstration, not a real ward</span>
-          Seeded {seededOn ? `on ${seededOn}` : "for this demo"} as 200 households × 7 days. Every compliance and kg row below is
-          generated by <code>src/lib/pilotSeed.ts</code>; no government figure is used. Replace it with live inspections before quoting
-          any impact.
+          <span className="notice-title">{t("dashboard.templateTitle")}</span>
+          {seededOn
+            ? t("dashboard.templateBodySeeded", { date: seededOn })
+            : t("dashboard.templateBodyDemo")}
           <div className="btn-row two" style={{ marginTop: 10, maxWidth: 520 }}>
             <a className="btn btn-ink btn-sm" href="/">
-              Collect live inspections
+              {t("dashboard.collectLivePlural")}
             </a>
             <button className="btn btn-quiet btn-sm" type="button" onClick={seed} disabled={seeding}>
-              {seeding ? "Re-seeding…" : "Re-seed template"}
+              {seeding ? t("dashboard.reseeding") : t("dashboard.reseed")}
             </button>
           </div>
         </div>
@@ -154,16 +161,16 @@ export default function Dashboard() {
 
       {error && (
         <div className="notice red">
-          <span className="notice-title">Ledger error</span>
+          <span className="notice-title">{t("dashboard.ledgerError")}</span>
           {error}
         </div>
       )}
 
       <section className="sheet">
         <div className="sheet-head">
-          <h2>Day 1 to Day 7</h2>
+          <h2>{t("dashboard.day1to7")}</h2>
           <span className={`tag ${stats.isTemplate ? "ochre" : "green"}`}>
-            {stats.isTemplate ? "Template rows" : "Photo-proven rows"}
+            {stats.isTemplate ? t("dashboard.templateRows") : t("dashboard.photoRows")}
           </span>
         </div>
 
@@ -174,13 +181,15 @@ export default function Dashboard() {
               <small>%</small>
             </span>
             <span className="caption">
-              Day 1 baseline
+              {t("dashboard.day1Baseline")}
               <br />
-              {stats.days[0]?.inspections.toLocaleString("en-IN")} bins photographed
+              {t("dashboard.binsPhotographed", {
+                count: stats.days[0]?.inspections.toLocaleString("en-IN") ?? 0,
+              })}
             </span>
           </div>
           <div className="mid" aria-hidden="true">
-            7 days
+            {t("dashboard.sevenDays")}
           </div>
           <div className="side right">
             <span className="big num">
@@ -188,25 +197,27 @@ export default function Dashboard() {
               <small>%</small>
             </span>
             <span className="caption">
-              Day 7 compliance
+              {t("dashboard.day7Compliance")}
               <br />
-              {stats.days[stats.days.length - 1]?.inspections.toLocaleString("en-IN")} bins photographed
+              {t("dashboard.binsPhotographed", {
+                count: stats.days[stats.days.length - 1]?.inspections.toLocaleString("en-IN") ?? 0,
+              })}
             </span>
           </div>
         </div>
         <span className={`delta ${stats.liftPoints < 0 ? "ochre" : ""}`}>
           {stats.liftPoints >= 0 ? "+" : ""}
-          {stats.liftPoints} points
+          {t("dashboard.points", { points: stats.liftPoints })}
         </span>
         <p className="source" style={{ marginTop: 8 }}>
-          Change from the first to the last day in the register. Not an annual rate and not a claim about the city.
+          {t("dashboard.deltaNote")}
         </p>
       </section>
 
       <section className="sheet">
         <div className="sheet-head">
-          <h2>Compliance by day</h2>
-          <span className="sheet-meta">Wet or dry ÷ all inspections</span>
+          <h2>{t("dashboard.complianceByDay")}</h2>
+          <span className="sheet-meta">{t("dashboard.complianceFormula")}</span>
         </div>
         <div className="bar-scale" aria-hidden="true">
           <span>0%</span>
@@ -216,10 +227,14 @@ export default function Dashboard() {
         {stats.days.map((d) => (
           <div className="bar-row" key={d.day}>
             <div className="day">
-              <b>Day {d.day}</b>
+              <b>{t("dashboard.dayN", { day: d.day })}</b>
               {d.date.slice(5)}
             </div>
-            <div className="bar-track" role="img" aria-label={`Day ${d.day}: ${d.compliancePct}% compliant`}>
+            <div
+              className="bar-track"
+              role="img"
+              aria-label={t("dashboard.barAria", { day: d.day, pct: d.compliancePct })}
+            >
               <div
                 className={`bar-fill ${d.compliancePct < 50 ? "red" : d.compliancePct < 70 ? "ochre" : ""}`}
                 style={{ width: `${Math.max(0, Math.min(100, d.compliancePct))}%` }}
@@ -229,13 +244,12 @@ export default function Dashboard() {
           </div>
         ))}
         <p className="source" style={{ marginTop: 10 }}>
-          Each bar is {stats.days[0]?.inspections || 0} inspections. The rail colour changes at 50% and 70% so a bad day is legible at a
-          glance, not only in the number.
+          {t("dashboard.barNote", { count: stats.days[0]?.inspections || 0 })}
         </p>
 
         <details className="kit" style={{ marginTop: 12 }}>
           <summary>
-            <span>Day-by-day kg behind the bars</span>
+            <span>{t("dashboard.kgDetails")}</span>
             <span className="plus" aria-hidden="true">
               +
             </span>
@@ -244,7 +258,7 @@ export default function Dashboard() {
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
               <thead>
                 <tr>
-                  {["Day", "Bins", "Wet kg", "Dry kg", "Mixed kg"].map((h) => (
+                  {KG_HEAD_KEYS.map((h) => (
                     <th
                       key={h}
                       style={{
@@ -254,7 +268,7 @@ export default function Dashboard() {
                         fontWeight: 600,
                       }}
                     >
-                      {h}
+                      {t(h)}
                     </th>
                   ))}
                 </tr>
@@ -277,20 +291,17 @@ export default function Dashboard() {
 
       <section className="sheet">
         <div className="sheet-head">
-          <h2>What the week diverted</h2>
-          <span className="tag ochre">Estimate, not a weighbridge</span>
+          <h2>{t("dashboard.divertedTitle")}</h2>
+          <span className="tag ochre">{t("dashboard.estimateNotWeighbridge")}</span>
         </div>
-        <p className="sheet-lede">
-          Every factor is on its own line. Change the household count or the Day-7 compliance and the result changes with it. The
-          factors are published national planning figures, not measurements from this ward.
-        </p>
+        <p className="sheet-lede">{t("dashboard.divertedIntro")}</p>
 
         <div className="formula">
           {lines.map((l) => (
-            <div className="formula-line" key={l.expression}>
-              <span className="expr">{l.expression}</span>
-              <span className="res num">{l.result}</span>
-              <span className="src">{l.source}</span>
+            <div className="formula-line" key={l.expressionKey}>
+              <span className="expr">{t(l.expressionKey, l.expressionVars)}</span>
+              <span className="res num">{t(l.resultKey, l.resultVars)}</span>
+              <span className="src">{l.sourceKey ? t(l.sourceKey) : l.source}</span>
             </div>
           ))}
           <div className="formula-total">
@@ -300,97 +311,97 @@ export default function Dashboard() {
                 <small> kg</small>
               </span>
               <span className="caption">
-                wet waste diverted in 7 days
+                {t("dashboard.wetDiverted")}
                 <br />
-                at {stats.day7}% segregation
+                {t("dashboard.atSegregation", { pct: stats.day7 })}
               </span>
             </div>
-            <span className="tag green">Estimate</span>
+            <span className="tag green">{t("dashboard.estimate")}</span>
           </div>
         </div>
 
         <div className="context-line" style={{ marginTop: 12 }}>
-          <span className="k">Annualised, per 1,000 households at {stats.day7}%</span>
+          <span className="k">{t("dashboard.annualised", { pct: stats.day7 })}</span>
           <span className="v num">
-            {annual} t wet/yr
-            <small>same factors, 365 days</small>
+            {t("dashboard.annualValue", { tonnes: annual })}
+            <small>{t("dashboard.sameFactors")}</small>
           </span>
         </div>
         <div className="context-line">
-          <span className="k">Measured in the template photo register</span>
+          <span className="k">{t("dashboard.measured")}</span>
           <span className="v num">
-            {stats.wetDivertedKg.toLocaleString("en-IN")} kg
-            <small>wet kg in non-mixed bins, 7 days</small>
+            {t("dashboard.measuredValue", { kg: stats.wetDivertedKg.toLocaleString("en-IN") })}
+            <small>{t("dashboard.measuredNote")}</small>
           </span>
         </div>
         <div className="context-line">
-          <span className="k">Still mixed in the template register</span>
+          <span className="k">{t("dashboard.stillMixed")}</span>
           <span className="v num">
-            {stats.mixedKg.toLocaleString("en-IN")} kg
-            <small>7 days</small>
+            {t("dashboard.measuredValue", { kg: stats.mixedKg.toLocaleString("en-IN") })}
+            <small>{t("dashboard.sevenDays")}</small>
           </span>
         </div>
 
         <p className="source" style={{ marginTop: 10 }}>
-          The measured row comes from the seeded inspection rows. The estimate above it is a ceiling built from {FACTORS.householdSize}{" "}
-          people/household ({FACTORS.householdSource}), {FACTORS.perCapitaKgDay} kg/person/day ({FACTORS.perCapitaSource}) and a 50%
-          wet fraction ({FACTORS.compositionSource}). The two numbers are not interchangeable.
+          {t("dashboard.factorsNote", {
+            size: FACTORS.householdSize,
+            householdSource: FACTORS.householdSource,
+            perCapita: FACTORS.perCapitaKgDay,
+            perCapitaSource: FACTORS.perCapitaSource,
+            compositionSource: FACTORS.compositionSource,
+          })}
         </p>
       </section>
 
       <section className="sheet">
         <div className="sheet-head">
-          <h2>The problem this sits inside</h2>
-          <span className="sheet-meta">National context, not this pilot</span>
+          <h2>{t("dashboard.problemTitle")}</h2>
+          <span className="sheet-meta">{t("dashboard.problemMeta")}</span>
         </div>
         <div className="notice" style={{ borderLeftWidth: 8 }}>
-          <span className="notice-title">India generates about 1.7 lakh tonnes of municipal solid waste a day.</span>
-          CPCB reports that only about 20% is processed; the rest is dumped or unaccounted. That is why a per-household record matters:
-          a city-level tonnage cannot tell a ward which bins are actually separated. Source: CPCB Annual Report 2021-22 / 2022-23.
+          <span className="notice-title">{t("dashboard.problemNoticeTitle")}</span>
+          {t("dashboard.problemNoticeBody")}
         </div>
-        <p className="source">
-          The 1.7 lakh figure and the 20% figure are national. They are not used to compute this pilot&apos;s diverted kg, which is built
-          from the household count and the published per-capita and composition factors above.
-        </p>
+        <p className="source">{t("dashboard.problemNote")}</p>
       </section>
 
       <section className="sheet">
         <div className="sheet-head">
-          <h2>How the loop works</h2>
-          <span className="sheet-meta">A sequence, not a feature list</span>
+          <h2>{t("dashboard.loopTitle")}</h2>
+          <span className="sheet-meta">{t("dashboard.loopMeta")}</span>
         </div>
         <ol className="steps">
           <li>
             <div>
-              <b>One photo at pickup</b>
-              <span>The collector photographs the bin already in front of them. No new hardware, no household app.</span>
+              <b>{t("dashboard.step1Title")}</b>
+              <span>{t("dashboard.step1Body")}</span>
             </div>
           </li>
           <li>
             <div>
-              <b>A vision read, then a human confirm</b>
-              <span>BharatCode classifies wet, dry, mixed or hazardous. The collector confirms or overrides; the source is stored.</span>
+              <b>{t("dashboard.step2Title")}</b>
+              <span>{t("dashboard.step2Body")}</span>
             </div>
           </li>
           <li>
             <div>
-              <b>A nudge the same morning</b>
-              <span>A mixed bin produces a prefilled Hindi + English WhatsApp message. The collector taps Send; Alag never fakes it.</span>
+              <b>{t("dashboard.step3Title")}</b>
+              <span>{t("dashboard.step3Body")}</span>
             </div>
           </li>
           <li>
             <div>
-              <b>Day 1 against Day 7</b>
-              <span>The same register, the same households, a week apart. The ward sees movement, not a one-off survey.</span>
+              <b>{t("dashboard.step4Title")}</b>
+              <span>{t("dashboard.step4Body")}</span>
             </div>
           </li>
         </ol>
         <div className="btn-row two" style={{ marginTop: 14 }}>
           <a className="btn btn-primary" href="/">
-            Open the field tool
+            {t("dashboard.openField")}
           </a>
           <a className="btn btn-quiet" href="/leaderboard">
-            See the ward register
+            {t("dashboard.seeWard")}
           </a>
         </div>
       </section>

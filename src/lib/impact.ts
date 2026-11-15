@@ -10,6 +10,8 @@
 //  - Compliance: measured from the pilot's own photo register (template until
 //    replaced by live inspections).
 
+import type { MessageKey } from "./i18n";
+
 export const FACTORS = {
   perCapitaKgDay: 0.45,
   perCapitaSource: "CPHEEO, Manual on MSW Management (2016), Class I city figure",
@@ -49,28 +51,56 @@ export function computeImpact(households: number, compliancePct: number, days = 
   };
 }
 
-export function formulaLines(households: number, compliancePct: number, days = 7) {
+export function formulaLines(
+  households: number,
+  compliancePct: number,
+  days = 7
+): FormulaLine[] {
   const i = computeImpact(households, compliancePct, days);
+  const people = i.people.toLocaleString("en-IN");
+  const collected = i.collectedKg.toLocaleString("en-IN");
+  const wet = i.wetKg.toLocaleString("en-IN");
+  const diverted = i.divertedKg.toLocaleString("en-IN");
+  // Sentences are assembled in the message catalog, not here: Indic word order
+  // differs, so each line is one key with its own placeholders.
   return [
     {
-      expression: `${households} households × ${FACTORS.householdSize} people`,
-      result: `${i.people.toLocaleString("en-IN")} people`,
+      expressionKey: "dashboard.formulaHouseholds",
+      expressionVars: { households, size: FACTORS.householdSize },
+      resultKey: "dashboard.formulaPeople",
+      resultVars: { people },
       source: FACTORS.householdSource,
     },
     {
-      expression: `${i.people.toLocaleString("en-IN")} people × ${FACTORS.perCapitaKgDay} kg/day × ${days} days`,
-      result: `${i.collectedKg.toLocaleString("en-IN")} kg waste`,
+      expressionKey: "dashboard.formulaWaste",
+      expressionVars: { people, kg: FACTORS.perCapitaKgDay, days },
+      resultKey: "dashboard.formulaWasteResult",
+      resultVars: { collected },
       source: FACTORS.perCapitaSource,
     },
     {
-      expression: `${i.collectedKg.toLocaleString("en-IN")} kg × 50% wet`,
-      result: `${i.wetKg.toLocaleString("en-IN")} kg wet`,
+      expressionKey: "dashboard.formulaWet",
+      expressionVars: { collected },
+      resultKey: "dashboard.formulaWetResult",
+      resultVars: { wet },
       source: FACTORS.compositionSource,
     },
     {
-      expression: `${i.wetKg.toLocaleString("en-IN")} kg wet × ${compliancePct}% segregated`,
-      result: `${i.divertedKg.toLocaleString("en-IN")} kg diverted`,
-      source: "Compliance from the photo register on this dashboard",
+      expressionKey: "dashboard.formulaDiverted",
+      expressionVars: { wet, compliance: compliancePct },
+      resultKey: "dashboard.formulaDivertedResult",
+      resultVars: { diverted },
+      source: "",
+      sourceKey: "dashboard.formulaComplianceSource",
     },
   ];
 }
+
+export type FormulaLine = {
+  expressionKey: MessageKey;
+  expressionVars: Record<string, string | number>;
+  resultKey: MessageKey;
+  resultVars: Record<string, string | number>;
+  source: string;
+  sourceKey?: MessageKey;
+};

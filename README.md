@@ -2,6 +2,7 @@
 
 **Impact area:** Waste Management
 **Hackathon:** Code for a Billion — Code for India
+**Built in:** [AgentFoundry](https://agentfoundry.me) (AF), the official IDE for Code for a Billion
 
 ## Problem statement (submission-ready)
 
@@ -48,6 +49,37 @@ npm run dev                 # http://localhost:3000
 ```
 
 > `.env` is already present in this demo checkout for judges; production deployments must set it via env vars and **never commit** it.
+
+## Languages
+
+The interface ships in **English (source) plus the ten most widely spoken Indian
+languages** — `hi` Hindi, `bn` Bengali, `mr` Marathi, `te` Telugu, `ta` Tamil,
+`gu` Gujarati, `ur` Urdu (RTL), `kn` Kannada, `or` Odia, `ml` Malayalam. The
+language picker sits in the masthead on every route and lists each language in its
+own script.
+
+- **Where the strings live:** `src/lib/i18n/messages/en.ts` is the source of truth.
+  Every other locale (`hi.ts`, `ta.ts`, …) is a `Partial` of the English map, so an
+  untranslated key falls back to English instead of leaking a key name.
+  `src/lib/i18n/index.ts` merges locale over English; `translate()` fills
+  `{placeholders}`.
+- **How the choice persists:** `LanguageSwitcher` writes the `i18n_locale` cookie
+  (`path=/`, one year, `samesite=lax`) and the same key in `localStorage`, then
+  calls `router.refresh()` so server components re-render. The root layout reads
+  the cookie and sets `<html lang dir>`; `ur` switches `dir` to `rtl`.
+- **Server vs client:** server components use `getI18n()` from
+  `src/lib/i18n/server.ts`; client components use `useI18n()` from
+  `src/components/I18nProvider.tsx`.
+- **Adding a key:** add the exact English copy to `en.ts` under the right
+  namespace (`field.*`, `dashboard.*`, `leaderboard.*`, `common.*`), then call
+  `t("your.key")` (or `t("your.key", { name })`). Keep a whole sentence in one key
+  with `{placeholders}` — never concatenate translated fragments, because Indic
+  word order differs. `npx tsc --noEmit` fails on a key that does not exist.
+- **Official text stays English:** generated complaint drafts, citations, source
+  names, place names, numbers and user input are deliberately not translated.
+- **Checking coverage:** `node scripts/check-i18n.mjs` lists keys still missing from
+  each locale (expected until translations land). Type-check with
+  `npx tsc --noEmit` and build with `npm run build`.
 
 ## Demo script (3 minutes, judge-friendly)
 

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/I18nProvider";
 
 type Row = {
   rwa: string;
@@ -17,10 +18,11 @@ function tier(pct: number) {
 }
 
 export default function Leaderboard() {
+  const { t } = useI18n();
   const [rows, setRows] = useState<Row[]>([]);
   const [template, setTemplate] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +38,7 @@ export default function Leaderboard() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError("The ward register could not be read.");
+        setFailed(true);
         setLoading(false);
       });
     return () => {
@@ -49,70 +51,66 @@ export default function Leaderboard() {
   return (
     <>
       <section className="hero">
-        <p className="label">Ward register · ranked by photo-proven compliance</p>
-        <h1>Who is actually separating.</h1>
-        <p>
-          Ranked by the share of photographed bins recorded as wet or dry. Not a citizen survey, not a self-report: the collector
-          stands in front of the bin.
-        </p>
+        <p className="label">{t("leaderboard.kicker")}</p>
+        <h1>{t("leaderboard.title")}</h1>
+        <p>{t("leaderboard.intro")}</p>
         <div className="hero-meta">
           <span>
-            Rows: <b>{rows.length}</b>
+            {t("leaderboard.rows")} <b>{rows.length}</b>
           </span>
           <span>
-            Source: <b>{template ? "template pilot" : "live register"}</b>
+            {t("leaderboard.source")}{" "}
+            <b>{template ? t("leaderboard.templateSource") : t("leaderboard.liveRegister")}</b>
           </span>
           <span>
-            Ward labels: <b>pilot-collected</b>
+            {t("leaderboard.wardLabels")} <b>{t("leaderboard.pilotCollected")}</b>
           </span>
         </div>
       </section>
 
       {template && (
         <div className="notice">
-          <span className="notice-title">These ranks come from the seeded template pilot.</span>
-          The RWA names are demonstration names, not real associations, and the ward column says pilot-collected because no municipal
-          ward number was supplied. Replace the seed with live inspections before showing this to a ward officer.
+          <span className="notice-title">{t("leaderboard.templateTitle")}</span>
+          {t("leaderboard.templateBody")}
         </div>
       )}
 
-      {error && (
+      {failed && (
         <div className="notice red">
-          <span className="notice-title">Register unavailable</span>
-          {error}
+          <span className="notice-title">{t("leaderboard.errorTitle")}</span>
+          {t("leaderboard.errorBody")}
         </div>
       )}
 
       <section className="sheet">
         <div className="sheet-head">
-          <h2>The register</h2>
-          <span className="sheet-meta">Wet or dry ÷ all photos</span>
+          <h2>{t("leaderboard.registerTitle")}</h2>
+          <span className="sheet-meta">{t("leaderboard.formula")}</span>
         </div>
 
         {loading ? (
           <div className="empty">
-            <b>Reading the ward register…</b>
-            Ranking the photo rows by compliance.
+            <b>{t("leaderboard.loadingTitle")}</b>
+            {t("leaderboard.loadingBody")}
           </div>
         ) : rows.length === 0 ? (
           <div className="empty">
-            <b>No RWA rows yet.</b>
-            Seed the template pilot on the <a href="/dashboard">pilot ledger</a>, or collect live inspections in the{" "}
-            <a href="/">field tool</a>. The register fills itself from the inspection table; nothing is typed in by hand.
+            <b>{t("leaderboard.emptyTitle")}</b>
+            {t("leaderboard.emptyBody")}
             <div className="btn-row two" style={{ marginTop: 10 }}>
               <a className="btn btn-primary" href="/dashboard">
-                Open the pilot ledger
+                {t("leaderboard.openLedger")}
               </a>
               <a className="btn btn-quiet" href="/">
-                Collect an inspection
+                {t("leaderboard.collect")}
               </a>
             </div>
           </div>
         ) : (
           <div className="ledger">
             <div className="ledger-head">
-              <span>Rank / RWA</span>
-              <span>Compliance</span>
+              <span>{t("leaderboard.rankRwa")}</span>
+              <span>{t("leaderboard.compliance")}</span>
             </div>
             {rows.map((r, i) => (
               <div className="ledger-row" key={`${r.rwa}-${i}`}>
@@ -135,7 +133,12 @@ export default function Leaderboard() {
                     <div style={{ minWidth: 0 }}>
                       <div className="house">{r.rwa}</div>
                       <div className="meta">
-                        Ward {r.ward} · {r.households} households · {r.inspections} photos · {r.wetKg} kg wet
+                        {t("leaderboard.rowMeta", {
+                          ward: r.ward,
+                          households: r.households,
+                          inspections: r.inspections,
+                          wetKg: r.wetKg,
+                        })}
                       </div>
                       <div className="bar-track" style={{ marginTop: 6, maxWidth: 260 }}>
                         <div
@@ -149,45 +152,44 @@ export default function Leaderboard() {
                 <div className="cell right">
                   <div className="amount num" style={{ fontSize: "1.25rem" }}>
                     {r.compliancePct}%
-                    <small>{r.inspections ? `${Math.round((r.inspections / max) * 100)}% of top volume` : "no photos"}</small>
+                    <small>
+                      {r.inspections
+                        ? t("leaderboard.volume", {
+                            pct: Math.round((r.inspections / max) * 100),
+                          })
+                        : t("leaderboard.noPhotos")}
+                    </small>
                   </div>
                 </div>
               </div>
             ))}
-            <div className="ledger-foot">
-              {rows.length} RWA rows. The rail turns ochre below 75% and red below 50%. A rank is only comparable within this pilot;
-              household counts differ.
-            </div>
+            <div className="ledger-foot">{t("leaderboard.foot", { count: rows.length })}</div>
           </div>
         )}
       </section>
 
       <section className="sheet">
         <div className="sheet-head">
-          <h2>What the rank measures</h2>
-          <span className="sheet-meta">And what it does not</span>
+          <h2>{t("leaderboard.measuresTitle")}</h2>
+          <span className="sheet-meta">{t("leaderboard.measuresMeta")}</span>
         </div>
         <div className="grid-2">
           <div>
-            <h3 style={{ marginBottom: 6 }}>It measures</h3>
+            <h3 style={{ marginBottom: 6 }}>{t("leaderboard.measuresH3")}</h3>
             <p className="small" style={{ color: "var(--ink-2)" }}>
-              The share of bins in this RWA that a collector photographed and recorded as wet or dry. Mixed and hazardous bins count
-              against. The denominator is every photo in the register, so an RWA cannot improve by skipping bad bins.
+              {t("leaderboard.measuresBody")}
             </p>
           </div>
           <div>
-            <h3 style={{ marginBottom: 6 }}>It does not measure</h3>
+            <h3 style={{ marginBottom: 6 }}>{t("leaderboard.notMeasuresH3")}</h3>
             <p className="small" style={{ color: "var(--ink-2)" }}>
-              Cleanliness of the street, the ward&apos;s official Swachh Survekshan score, or whether the waste was processed after
-              pickup. Ward labels are pilot-collected; no municipal ward number is invented. A high rank is evidence of separation at
-              the bin, nothing more.
+              {t("leaderboard.notMeasuresBody")}
             </p>
           </div>
         </div>
         <div className="notice" style={{ marginTop: 14 }}>
-          <span className="notice-title">Why the collector is the right sensor</span>
-          The collector is the only person who sees every household&apos;s bin every day. A citizen report samples the angry; a
-          city dashboard samples the aggregate. The photo register samples the actual bin, household by household.
+          <span className="notice-title">{t("leaderboard.whyTitle")}</span>
+          {t("leaderboard.whyBody")}
         </div>
       </section>
     </>

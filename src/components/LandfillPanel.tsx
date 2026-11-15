@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { useI18n } from "@/components/I18nProvider";
 
 type Site = {
   id: string;
@@ -43,6 +44,7 @@ export default function LandfillPanel({
   lng: number;
   label: string;
 }) {
+  const { t } = useI18n();
   const [data, setData] = useState<Result | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -56,11 +58,10 @@ export default function LandfillPanel({
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
       setData(json);
     } catch (e: any) {
-      setErr(e?.message || "Landfill lookup failed");
+      setErr(e?.message || t("dump.lookupFailed"));
       setData(null);
     }
-    setLoading(false);
-  }, [lat, lng]);
+  }, [lat, lng, t]);
 
   useEffect(() => {
     load();
@@ -71,10 +72,10 @@ export default function LandfillPanel({
       <div className="stack" aria-live="polite">
         <div className="map-frame" style={{ height: 240, display: "grid", placeItems: "center" }}>
           <p className="small muted" style={{ padding: 20, textAlign: "center" }}>
-            Querying OpenStreetMap Overpass for <b>landuse=landfill</b> inside a 25 km box…
+            {t("dump.querying")}
           </p>
         </div>
-        <p className="source">Mirrors are tried in order with backoff. Nothing is drawn until OSM returns a real element.</p>
+        <p className="source">{t("dump.mirrors")}</p>
       </div>
     );
   }
@@ -83,11 +84,16 @@ export default function LandfillPanel({
     return (
       <div>
         <div className="notice red">
-          <span className="notice-title">Map data unavailable</span>
-          {err || "No answer from the Overpass mirrors."} No coordinates are generated here.
+          <span className="notice-title">{t("dump.unavailable")}</span>
+          {err || t("dump.noAnswer")} {t("dump.noCoords")}
         </div>
-        <a className="btn btn-quiet btn-sm" href={`https://www.openstreetmap.org/#map=12/${lat}/${lng}`} target="_blank" rel="noreferrer">
-          Check this area on OpenStreetMap
+        <a
+          className="btn btn-quiet btn-sm"
+          href={`https://www.openstreetmap.org/#map=12/${lat}/${lng}`}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {t("dump.checkArea")}
         </a>
       </div>
     );
@@ -97,11 +103,11 @@ export default function LandfillPanel({
     return (
       <div>
         <div className="notice red">
-          <span className="notice-title">Map data unavailable</span>
-          All three Overpass mirrors failed. {data.error}
+          <span className="notice-title">{t("dump.unavailable")}</span>
+          {t("dump.allFailed", { error: data.error || "" })}
         </div>
         <a className="btn btn-quiet btn-sm" href={data.osmSearchUrl} target="_blank" rel="noreferrer">
-          Open this area on OpenStreetMap
+          {t("dump.openArea")}
         </a>
       </div>
     );
@@ -111,7 +117,7 @@ export default function LandfillPanel({
     <div>
       <div className="map-frame">
         <iframe
-          title={`OpenStreetMap around ${label}`}
+          title={t("dump.mapTitle", { label })}
           src={embedUrl(data)}
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"
@@ -119,11 +125,13 @@ export default function LandfillPanel({
         <div className="map-caption">
           <span>
             {data.sites.length > 0
-              ? `${data.sites.length} mapped landfill${data.sites.length === 1 ? "" : "s"} within 25 km`
-              : "No mapped landfill in this 25 km box"}
+              ? t(data.sites.length === 1 ? "dump.countOne" : "dump.countMany", {
+                  count: data.sites.length,
+                })
+              : t("dump.none")}
           </span>
           <a href={data.osmSearchUrl} target="_blank" rel="noreferrer">
-            Larger map
+            {t("dump.larger")}
           </a>
         </div>
       </div>
@@ -144,21 +152,34 @@ export default function LandfillPanel({
               </div>
               <div className="site-dist num">
                 {s.distanceKm.toFixed(1)} km
-                <small>from centre</small>
+                <small>{t("dump.fromCentre")}</small>
               </div>
             </li>
           ))}
         </ul>
       ) : (
         <div className="empty" style={{ marginTop: 10 }}>
-          <b>OpenStreetMap has no landfill mapped here.</b>
-          That is a gap in OSM, not proof that no dumpsite exists. Add one from a survey, or check the city&apos;s SWM plan.
+          <b>{t("dump.emptyTitle")}</b>
+          {t("dump.emptyBody")}
         </div>
       )}
 
       <p className="source" style={{ marginTop: 8 }}>
-        {data.source}. {data.cached ? "Cached answer" : "Fetched now"} for a 25 km box around {label} ({data.center.lat.toFixed(4)},{" "}
-        {data.center.lng.toFixed(4)}). {data.mirror ? `Mirror: ${new URL(data.mirror).host}.` : ""} Coordinates are OSM element centres; none are estimated.
+        {data.cached
+          ? t("dump.footnoteCached", {
+              source: data.source,
+              label,
+              lat: data.center.lat.toFixed(4),
+              lng: data.center.lng.toFixed(4),
+            })
+          : t("dump.footnoteFetched", {
+              source: data.source,
+              label,
+              lat: data.center.lat.toFixed(4),
+              lng: data.center.lng.toFixed(4),
+            })}{" "}
+        {data.mirror ? t("dump.mirror", { host: new URL(data.mirror).host }) : ""}{" "}
+        {t("dump.footnoteTail")}
       </p>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useI18n } from "@/components/I18nProvider";
 
 /**
  * How far through the round you are, kept in the corner while you walk.
@@ -22,6 +23,7 @@ export default function FloatingRegister({
   online: boolean;
 }) {
   const [shown, setShown] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const el = document.getElementById("capture");
@@ -38,24 +40,29 @@ export default function FloatingRegister({
   const pct = total > 0 ? Math.min(100, Math.round((logged / total) * 100)) : 0;
 
   return (
-    <aside className="float-reg" aria-label="Progress on this round">
+    <aside className="float-reg" aria-label={t("float.progress")}>
       <div className="float-reg-head">
-        <span>This round</span>
-        <span className={`float-reg-dot ${online ? "up" : "off"}`} title={online ? "Online" : "Offline"}>
+        <span>{t("float.thisRound")}</span>
+        <span
+          className={`float-reg-dot ${online ? "up" : "off"}`}
+          title={online ? t("common.online") : t("common.offline")}
+        >
           <span className="dot" />
-          {online ? "Online" : queued ? `${queued} queued` : "Offline"}
+          {online
+            ? t("common.online")
+            : queued
+              ? t("common.queued", { count: queued })
+              : t("common.offline")}
         </span>
       </div>
-      <p className="float-reg-count">
-        <b>{logged}</b> of <b>{total}</b> households logged
-      </p>
+      <p className="float-reg-count">{t("float.logged", { logged, total })}</p>
       <div
         className="float-reg-track"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
-        aria-label={`${pct}% of the round logged`}
+        aria-label={t("float.pct", { pct })}
       >
         <span style={{ width: `${pct}%` }} />
       </div>

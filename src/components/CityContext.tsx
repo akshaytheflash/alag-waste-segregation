@@ -1,5 +1,7 @@
 "use client";
 
+import { useI18n } from "@/components/I18nProvider";
+
 type Rank = {
   city: string;
   state: string;
@@ -68,13 +70,15 @@ export default function CityContext({
   error: string;
   pincode: string;
 }) {
+  const { t } = useI18n();
+
   if (loading) {
     return (
       <div className="stack" aria-live="polite">
-        <p className="small muted">Resolving PIN {pincode} through India Post, then checking the Swachh Survekshan register…</p>
+        <p className="small muted">{t("city.resolving", { pin: pincode })}</p>
         <div className="context-line">
-          <span className="k">City rank</span>
-          <span className="v">Checking</span>
+          <span className="k">{t("city.rank")}</span>
+          <span className="v">{t("city.checking")}</span>
         </div>
       </div>
     );
@@ -83,8 +87,8 @@ export default function CityContext({
   if (error || !data) {
     return (
       <div className="notice red">
-        <span className="notice-title">City context unavailable</span>
-        {error || "The PIN could not be resolved."} No rank is shown rather than a guessed one.
+        <span className="notice-title">{t("city.unavailable")}</span>
+        {error || t("city.pinUnresolved")} {t("city.noGuess")}
       </div>
     );
   }
@@ -98,14 +102,12 @@ export default function CityContext({
           <>
             <span className="rank-num num">{rank.rank}</span>
             <span className="rank-copy">
-              <b>
-                of {rank.of} cities, {rank.year}
-              </b>
+              <b>{t("city.ofCities", { of: rank.of, year: rank.year })}</b>
               {rank.city}, {rank.state}
             </span>
           </>
         ) : (
-          <span className="rank-num none">Not published for this city</span>
+          <span className="rank-num none">{t("city.notPublished")}</span>
         )}
       </div>
 
@@ -113,13 +115,19 @@ export default function CityContext({
         <p className="source">
           {rank.source}.{" "}
           <a href={rank.sourceUrl} target="_blank" rel="noreferrer">
-            Open the source
+            {t("common.openSource")}
           </a>
-          {rank.live ? ` · live row fetched ${new Date(feeds.rankFetchedAt).toLocaleDateString("en-IN")}` : " · verified extract"}
+          {rank.live
+            ? ` · ${t("city.liveFetched", {
+                date: new Date(feeds.rankFetchedAt).toLocaleDateString("en-IN"),
+              })}`
+            : ` · ${t("city.verifiedExtract")}`}
         </p>
       ) : (
         <p className="small" style={{ color: "var(--ink-2)" }}>
-          {data.rankNote}
+          {/delhi/i.test(data.state)
+            ? t("city.rankNoteDelhi", { district: data.district })
+            : t("city.rankNoteNone", { district: data.district })}
         </p>
       )}
 
@@ -135,31 +143,41 @@ export default function CityContext({
 
       {feeds.rankError && (
         <div className="notice" style={{ marginTop: 12 }}>
-          <span className="notice-title">Source note</span>
+          <span className="notice-title">{t("common.sourceNote")}</span>
           {feeds.rankError}
         </div>
       )}
 
       <div style={{ marginTop: 14 }}>
         <div className="context-line">
-          <span className="k">City solid waste, {solidWaste?.year || "2017-18"}</span>
+          <span className="k">
+            {t("city.solidWasteYear", { year: solidWaste?.year || "2017-18" })}
+          </span>
           <span className="v">
-            {solidWaste?.generatedTpd != null ? `${fmt(solidWaste.generatedTpd)} t/day` : "Not published"}
-            <small>{solidWaste?.generatedTpd != null ? "generated" : "for this city"}</small>
+            {solidWaste?.generatedTpd != null
+              ? `${fmt(solidWaste.generatedTpd)} t/day`
+              : t("common.notPublished")}
+            <small>
+              {solidWaste?.generatedTpd != null ? t("city.generated") : t("city.forThisCity")}
+            </small>
           </span>
         </div>
         <div className="context-line">
-          <span className="k">Collected by the ULB</span>
+          <span className="k">{t("city.collected")}</span>
           <span className="v">
             {solidWaste?.collectedTpd != null ? `${fmt(solidWaste.collectedTpd)} t/day` : "—"}
-            <small>{solidWaste?.collectedTpd != null ? "ULB return" : "no row"}</small>
+            <small>
+              {solidWaste?.collectedTpd != null ? t("city.ulbReturn") : t("common.noRow")}
+            </small>
           </span>
         </div>
         <div className="context-line">
-          <span className="k">Processed or recycled</span>
+          <span className="k">{t("city.processed")}</span>
           <span className="v">
             {solidWaste?.processedTpd != null ? `${fmt(solidWaste.processedTpd)} t/day` : "—"}
-            <small>{solidWaste?.processedTpd != null ? "ULB return" : "no row"}</small>
+            <small>
+              {solidWaste?.processedTpd != null ? t("city.ulbReturn") : t("common.noRow")}
+            </small>
           </span>
         </div>
         <p className="source" style={{ marginTop: 8 }}>
@@ -167,22 +185,26 @@ export default function CityContext({
             <>
               {solidWaste.source}.{" "}
               <a href={solidWaste.sourceUrl} target="_blank" rel="noreferrer">
-                Open the row
+                {t("common.openRow")}
               </a>
             </>
           ) : (
-            data.solidWasteNote
+            t("city.noSolidWasteRow", { district: data.district })
           )}
         </p>
       </div>
 
       <div className="notice" style={{ marginTop: 14 }}>
-        <span className="notice-title">National context, not this city</span>
+        <span className="notice-title">{t("city.nationalTitle")}</span>
         {national.label}. {national.source}.
       </div>
 
       <p className="source" style={{ marginTop: 8 }}>
-        PIN {data.pincode} → {data.district}, {data.state} (India Post). City rank is a 2017 survey figure; it is context, not a measure of this pilot.
+        {t("city.footnote", {
+          pin: data.pincode,
+          district: data.district,
+          state: data.state,
+        })}
       </p>
     </div>
   );
